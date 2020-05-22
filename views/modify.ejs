@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<%
+var road = rows[0];
+%>
+<body>
+    <h1><%= title %></h1>
+    <form method="post" action="/main/modify/<%=road.CONT_ID%>" onsubmit="onWriteSubmit()">
+      <table border="2">
+        <tr>
+          <th>제목</th>
+          <td><input type="text" name="title" id="title" value="<%=road.TITLE%>" required /></td>
+        </tr>
+        <tr>
+          <th>내용</th>
+          <td><textarea cols="50" role="12" name="content" id="content" required><%=road.CONTENT%></textarea></td>
+        </tr>
+        <tr>
+          <td colspan="2"><input type="submit" value="수정"></td>
+        </tr>
+      </table>
+    </form>
+    <form method="post" action="/main/delete/<%=road.CONT_ID%>">
+        <input type="submit" value="삭제">
+    </form>
+  <script>
+    function onWriteSubmit()
+    {
+
+      if ( $("#title").val().trim() == "" )
+      {
+        var message = "제목을 입력해 주세요";
+        $("#title").val("");
+        $("#title").focus();
+        alert(message);
+        return false;
+      }
+
+      if ( $("#content").val().trim() == "" )
+      {
+        var message = "본문 내용을 입력해 주세요";
+        $("#content").val("");
+        $("#content").focus();
+        alert(message);
+        return false;
+      }
+    }
+  </script>
+  </body>
+</html>

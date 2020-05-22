@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+  </head>
+  <%
+    var read = rows[0];
+  %>
+  <body>
+    <h1><%= title %></h1>
+    <table border="2">
+      <tr>
+        <th>번호</th>
+        <td><%=read.CONT_ID%></td>
+        <th>글쓴이</th>
+        <td><%=read.REG_ID%></td>
+      </tr>
+      <tr>
+        <th>제목</th>
+        <td colspan="5"><%=read.TITLE%></td>
+      </tr>
+      <tr>
+        <th>수정일</th>
+        <td colspan="2"><%=read.REG_DT%></td>
+      </tr>
+      <tr>
+        <td colspan="6" height="400" ><%=read.CONTENT%></td>
+      </tr>
+      <tr>
+        <td colspan="3">
+          <a href="/main"> 목록 </a>
+        </td>
+        <td colspan="3">
+            <a href="/main/modify/<%=read.CONT_ID%>"> 수정 </a>
+          </td>
+      </tr>
+      <form method="post" action="/main/delete/<%=read.CONT_ID%>">
+        <input type="submit" value="삭제">
+    </form>
+    </table>
+  </body>
+</html>
