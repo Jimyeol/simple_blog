@@ -7,7 +7,7 @@
   </head>
   <body>
     <h1><%= title %></h1>
-    <form method="post" action="/main/write" onsubmit="onWriteSubmit()">
+    <form method="post" role="form" id="writeForm" action="/main/write" enctype="multipart/form-data" on>
       <table border="2">
         <tr>
           <th>제목</th>
@@ -18,14 +18,41 @@
           <td><textarea cols="50" role="12" name="content" id="content" required></textarea></td>
         </tr>
         <tr>
-          <td colspan="2"><input type="submit" value="등록"></td>
+          <!-- <td colspan="2"><input type="submit" value="등록"></td> -->
+          <td colspan="2"></td>
         </tr>
       </table>
+      <input type="file" name="image">
     </form>
+    <button id="btnSubmit" type="button" name="button">조인</button>
   <script>
+    $('#btnSubmit').click(function(event) {
+
+      var form = $('#writeForm')[0];
+      var data = new FormData(form);
+
+      $.ajax ({
+        type: "POST",
+        enctype: 'multipart/form-data',
+        url: "/main/write",
+        data: data,
+        processData: false,
+        contentType: false,
+        cache: false,
+        timeout: 600000,
+        success: function (data) {
+          alert("complete");
+          window.location.replace('/main');
+        },
+        error: function (e) {
+            console.log("ERROR : ", e);
+            alert("fail");
+        }
+      });
+    });
+
     function onWriteSubmit()
     {
-
       if ( $("#title").val().trim() == "" )
       {
         var message = "제목을 입력해 주세요";

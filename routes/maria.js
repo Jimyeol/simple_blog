@@ -1,11 +1,15 @@
 const maria = require('mysql');
+const fs = require('fs');
+const dbData = fs.readFileSync('./routes/configure/dbInfo.json');
+const dbInfo = JSON.parse(dbData);
+
 
 const conn = maria.createConnection ( {
-    host: '127.0.0.1',
-    port: 3306, 
-    user: 'system',
-    password: 'glosfer1!',
-    database: 'glog'
+    host: dbInfo.host,
+    port: dbInfo.port, 
+    user: dbInfo.user,
+    password: dbInfo.password,
+    database: dbInfo.database
 });
 
 

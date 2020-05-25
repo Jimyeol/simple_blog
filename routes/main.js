@@ -1,9 +1,19 @@
-var express = require('express');
-var router = express.Router();
-
+const express = require('express');
+const router = express.Router();
 const db = require('./maria');
+var multipart = require('connect-multiparty');
+var multipartMiddleware = multipart();
+//파일 업로드 
+const multer = require('multer');
 
-var DB_NAME = 'BLOG_BOARD';
+const DB_NAME = 'BLOG_BOARD';
+
+/**
+ * 파일 업로드 부분
+ */
+var multipartMiddleware  =  multipart({ 
+  uploadDir  :   './public/resources/uploadImages' 
+}); 
 
 /**
  * 글 목록 페이지
@@ -54,45 +64,61 @@ router.get('/write', function(req, res, next) {
 /**
  * 글 쓰기 페이지
  */
-router.post('/write', function(req, res, next) {
-  var body = req.body;
-  var writer = 'admin';
-  var title = req.body.title;
-  var content = req.body.content;
+ router.post('/write',  multipartMiddleware, function (req, res, next) {
 
-  db.beginTransaction(function(err) {
-    if(err) console.log(err);
-    db.query('insert into ' + DB_NAME + '(TITLE,REG_ID,CONTENT) values(?,?,?)'
-        ,[title,writer,content]
-        ,function (err) {
-          if(err) {
-            /* 이 쿼리문에서 에러가 발생했을때는 쿼리문의 수행을 취소하고 롤백합니다.*/
-            console.log(err);
-            db.rollback(function () {
-              console.error('rollback error1');
-            })
-          }
-          db.query('SELECT LAST_INSERT_ID() as CONT_ID',function (err,rows) {
-            if(err) {
-              /* 이 쿼리문에서 에러가 발생했을때는 쿼리문의 수행을 취소하고 롤백합니다.*/
-              console.log(err);
-              db.rollback(function () {
-                console.error('rollback error1');
-              })
-            }
-            else
-            {
-              db.commit(function (err) {
-                if(err) console.log(err);
-                console.log("row : " + rows);
-                var idx = rows[0].CONT_ID;
-                res.redirect('/main');
-              });
-            }
-          });
-    });
-  });
-});
+   var body = req.body;
+   var files = req.files;
+   var writer = 'admin';
+   var title = body.title;
+   var content = body.content;
+
+   console.log(files);
+  
+   var originalName = '';
+   var fileName = '';
+   var mimeType = '';
+   var size = 0;
+
+   if(Array.isArray(files)) {
+    console.log('file is array ~');
+     originalName = files[0].originalFilename;
+     path = files[0].path;
+     size = files[0].size;
+   } else {
+     console.log('file is not array ~');
+     originalName = files[0].originalFilename;
+     path = files[0].path;
+     size = files[0].size;
+   }
+
+   db.beginTransaction(function (err) {
+     if (err) console.log(err);
+     db.query('insert into ' + DB_NAME + '(TITLE, REG_ID, CONTENT) values(?,?,?)', [title, writer, content], function (err) {
+       if (err) {
+         /* 이 쿼리문에서 에러가 발생했을때는 쿼리문의 수행을 취소하고 롤백합니다.*/
+         console.log(err);
+         db.rollback(function () {
+           console.error('rollback error1');
+         })
+       }
+       db.query('SELECT LAST_INSERT_ID() as CONT_ID', function (err, rows) {
+         if (err) {
+           /* 이 쿼리문에서 에러가 발생했을때는 쿼리문의 수행을 취소하고 롤백합니다.*/
+           console.log(err);
+           db.rollback(function () {
+             console.error('rollback error1');
+           })
+         } else {
+           db.commit(function (err) {
+             if (err) console.log(err);
+             var idx = rows[0].CONT_ID;
+             res.redirect('/main');
+           });
+         }
+       });
+     });
+   });
+ });
 
 /**
  * 글 수정 페이지
