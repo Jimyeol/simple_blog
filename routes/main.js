@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const db = require('./maria');
+const fs = require('fs');
+const crypto = require('crypto');
 const DB_NAME = 'BLOG_BOARD';
 
 //파일 업로드 
@@ -49,7 +51,7 @@ router.get('/', function (req, res, next) {
  */
 router.get('/view/:CONT_ID', function (req, res, next) {
   var cont_id = req.params.CONT_ID;
-  db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT FROM ' + DB_NAME + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
+  db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, FILE_PATH FROM ' + DB_NAME + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
     if (err) {
       console.log(err);
       db.rollback(function () {
@@ -60,7 +62,6 @@ router.get('/view/:CONT_ID', function (req, res, next) {
         if (err) {
           console.log("commit error : " + err);
         }
-        console.log(rows);
         res.render('view', {
           title: 'VIEW PAGE',
           rows: rows
@@ -69,6 +70,39 @@ router.get('/view/:CONT_ID', function (req, res, next) {
     }
   })
 });
+
+
+/**
+ * 이미지 불러오기
+ */
+ router.get('/imgs/:CONT_ID', function (req, res) {
+   var cont_id = req.params.CONT_ID;
+   console.log(cont_id);
+   db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, FILE_PATH FROM ' + DB_NAME + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
+     if (err) {
+       db.rollback(function () {
+         console.log("rollback error");
+       });
+     } else {
+       db.commit(function (err) {
+         if (err) {
+           console.log("commit error" + err);
+         }
+         if (rows.length <= 1) {
+           fs.readFile(rows[0].FILE_PATH, function (err, data) {
+             if (err) throw err;
+             res.writeHead(200, {
+               'Content-Type': 'image/png'
+             });
+             res.end(data);
+           });
+         } else {
+           console.log("length of rows is not 1");
+         }
+       });
+     }
+   });
+ });
 
 /**
  * 글 쓰기 페이지
@@ -83,11 +117,16 @@ router.get('/write', function (req, res, next) {
  * 글 쓰기 페이지
  */
 router.post('/write', upload.single('image'), function (req, res, next) {
+  var originalname = "";
+  var filename = "";
+  var filepath = "";
 
   var body = req.body;
-  var originalname = req.file.originalname;
-  var filename = req.file.filename;
-  var filepath = req.file.path;
+  if( req.file ) {
+    originalname = req.file.originalname;
+    filename = req.file.filename;
+    filepath = req.file.path;
+  }
   var writer = 'admin';
   var title = body.title;
   var content = body.content;
@@ -127,7 +166,7 @@ router.post('/write', upload.single('image'), function (req, res, next) {
  */
 router.get('/modify/:CONT_ID', function (req, res, next) {
   var cont_id = req.params.CONT_ID;
-  db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT FROM ' + DB_NAME + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
+  db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, ORG_FILE_NAME FROM ' + DB_NAME + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
     if (err) {
       console.log(err);
       db.rollback(function () {
@@ -148,26 +187,58 @@ router.get('/modify/:CONT_ID', function (req, res, next) {
   })
 });
 
-router.post('/modify/:CONT_ID', function (req, res, next) {
+router.post('/modify/:CONT_ID', upload.single('image'), function (req, res, next) {
   var cont_id = req.params.CONT_ID;
   var title = req.body.title;
   var content = req.body.content;
 
-  db.query('UPDATE ' + DB_NAME + ' SET TITLE=?, CONTENT=? WHERE CONT_ID=?', [title, content, cont_id], function (err, rows, fields) {
-    if (err) {
-      console.log(err);
-      db.rollback(function () {
-        console.log("rollback error");
-      })
-    } else {
-      db.commit(function (err) {
-        if (err) {
-          console.log("commit error : " + err);
-        }
-        res.redirect('/main');
-      })
-    }
-  })
+  var originalname = "";
+  var filename = "";
+  var filepath = "";
+
+  if( req.file ) {
+    originalname = req.file.originalname;
+    filename = req.file.filename;
+    filepath = req.file.path;
+  }
+  console.log(req.file);
+
+  //파일변경까지 있는 경우
+  if( req.file ) {
+    db.query('UPDATE ' + DB_NAME + ' SET TITLE=?, CONTENT=?, ORG_FILE_NAME=?, SAVE_FILE_NAME=?, FILE_PATH=? WHERE CONT_ID=?', [title, content, originalname, filename, filepath, cont_id], function (err, rows, fields) {
+      if (err) {
+        console.log(err);
+        db.rollback(function () {
+          console.log("rollback error");
+        })
+      } else {
+        db.commit(function (err) {
+          if (err) {
+            console.log("commit error : " + err);
+          }
+          res.redirect('/main');
+        })
+      }
+    })
+  } else {
+    //파일변경이 없는경우
+    db.query('UPDATE ' + DB_NAME + ' SET TITLE=?, CONTENT=? WHERE CONT_ID=?', [title, content, cont_id], function (err, rows, fields) {
+      if (err) {
+        console.log(err);
+        db.rollback(function () {
+          console.log("rollback error");
+        })
+      } else {
+        db.commit(function (err) {
+          if (err) {
+            console.log("commit error : " + err);
+          }
+          res.redirect('/main');
+        })
+      }
+    })
+  }
+  
 });
 
 /**
@@ -192,4 +263,41 @@ router.post('/delete/:CONT_ID', function (req, res, next) {
     }
   })
 });
+
+
+/**
+ * @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ * 로그인
+ * @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+ */
+
+
+// 로그인 GET
+router.get('/login', function(req, res, next) {
+    res.render("login");
+});
+
+// 로그인 POST
+router.post("/login", function(req,res,next){
+    let body = req.body;
+
+    console.log("비밀번호 일치");
+        res.redirect("/main");
+
+    // let dbPassword = result.dataValues.password;
+    // let inputPassword = body.password;
+    // let salt = result.dataValues.salt;
+    // let hashPassword = crypto.createHash("sha512").update(inputPassword + salt).digest("hex");
+
+    // if(dbPassword === hashPassword){
+    //     console.log("비밀번호 일치");
+    //     res.redirect("/main");
+    // }
+    // else{
+    //     console.log("비밀번호 불일치");
+    //     res.redirect("/main/login");
+    // }
+});
+
+
 module.exports = router;

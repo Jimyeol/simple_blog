@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
   <head>
+    <meta charset="utf-8">
     <title><%= title %></title>
     <link rel='stylesheet' href='/stylesheets/style.css' />
   </head>
@@ -25,7 +26,14 @@
         <td colspan="2"><%=read.REG_DT%></td>
       </tr>
       <tr>
-        <td colspan="6" height="400" ><%=read.CONTENT%></td>
+        <td colspan="6" height="400" >
+          <%
+            if(read.FILE_PATH) {
+          %>
+          <img src="/main/imgs/<%=read.CONT_ID%>" alt="image2">
+          <% } %>
+          <%=read.CONTENT%>
+        </td>
       </tr>
       <tr>
         <td colspan="3">

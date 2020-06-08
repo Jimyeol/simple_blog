@@ -1,16 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
 </head>
 <%
 var road = rows[0];
 %>
+
 <body>
-    <h1><%= title %></h1>
-    <form method="post" action="/main/modify/<%=road.CONT_ID%>" onsubmit="onWriteSubmit()">
+  <h1><%= title %></h1>
+  <form method="post" role="form" action="/main/modify/<%=road.CONT_ID%>" enctype="multipart/form-data">
+    <div class="form-grop">
       <table border="2">
         <tr>
           <th>제목</th>
@@ -24,16 +27,23 @@ var road = rows[0];
           <td colspan="2"><input type="submit" value="수정"></td>
         </tr>
       </table>
-    </form>
-    <form method="post" action="/main/delete/<%=road.CONT_ID%>">
-        <input type="submit" value="삭제">
-    </form>
+      <%
+        if(road.FILE_PATH == null) {
+      %>
+          <a href="/main/imgs/<%=road.CONT_ID%>"><%=road.ORG_FILE_NAME%></a>
+          </br>
+      <% } %>
+      <input type="file" name="image">
+      <input type="submit">제출</button>
+    </div>
+  </form>
+  <form method="post" action="/main/delete/<%=road.CONT_ID%>">
+    <input type="submit" value="삭제">
+  </form>
   <script>
-    function onWriteSubmit()
-    {
+    function onWriteSubmit() {
 
-      if ( $("#title").val().trim() == "" )
-      {
+      if ($("#title").val().trim() == "") {
         var message = "제목을 입력해 주세요";
         $("#title").val("");
         $("#title").focus();
@@ -41,8 +51,7 @@ var road = rows[0];
         return false;
       }
 
-      if ( $("#content").val().trim() == "" )
-      {
+      if ($("#content").val().trim() == "") {
         var message = "본문 내용을 입력해 주세요";
         $("#content").val("");
         $("#content").focus();
@@ -51,5 +60,6 @@ var road = rows[0];
       }
     }
   </script>
-  </body>
+</body>
+
 </html>
