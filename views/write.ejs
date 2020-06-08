@@ -7,7 +7,8 @@
   </head>
   <body>
     <h1><%= title %></h1>
-    <form method="post" role="form" id="writeForm" action="/main/write" enctype="multipart/form-data" on>
+    <form method="post" role="form" id="writeForm" action="/main/write" enctype="multipart/form-data">
+      <div class="form-grop">
       <table border="2">
         <tr>
           <th>제목</th>
@@ -23,8 +24,10 @@
         </tr>
       </table>
       <input type="file" name="image">
+      <input type="submit">제출</button>
+    </div>
     </form>
-    <button id="btnSubmit" type="button" name="button">조인</button>
+    
   <script>
     $('#btnSubmit').click(function(event) {
 
