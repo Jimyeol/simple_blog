@@ -2,8 +2,21 @@ const express = require('express');
 const router = express.Router();
 const db = require('./maria');
 const fs = require('fs');
-const crypto = require('crypto');
-const DB_NAME = 'BLOG_BOARD';
+const DB_BLOG_BOARD = 'BLOG_BOARD';
+const DB_USERINFO = 'ADMIN_INFO';
+
+var passport = require('passport'); 
+var LocalStrategy = require('passport-local').Strategy; 
+var session = require('express-session'); 
+var flash = require('connect-flash');
+
+
+
+var isAuthenticated = function (req, res, next) {
+  if (req.isAuthenticated())
+    return next();
+  res.redirect('/login');
+};
 
 //파일 업로드 
 const multer = require('multer');
@@ -32,7 +45,7 @@ var upload = multer({
  * 글 목록 페이지
  */
 router.get('/', function (req, res, next) {
-  db.query('SELECT * FROM ' + DB_NAME, function (err, list, fields) {
+  db.query('SELECT * FROM ' + DB_BLOG_BOARD, function (err, list, fields) {
     if (!err) {
       res.render('main', {
         title: 'Board List',
@@ -51,7 +64,8 @@ router.get('/', function (req, res, next) {
  */
 router.get('/view/:CONT_ID', function (req, res, next) {
   var cont_id = req.params.CONT_ID;
-  db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, FILE_PATH FROM ' + DB_NAME + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
+  var id = req.user;
+  db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, FILE_PATH FROM ' + DB_BLOG_BOARD + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
     if (err) {
       console.log(err);
       db.rollback(function () {
@@ -64,7 +78,8 @@ router.get('/view/:CONT_ID', function (req, res, next) {
         }
         res.render('view', {
           title: 'VIEW PAGE',
-          rows: rows
+          rows: rows,
+          id
         })
       })
     }
@@ -78,7 +93,7 @@ router.get('/view/:CONT_ID', function (req, res, next) {
  router.get('/imgs/:CONT_ID', function (req, res) {
    var cont_id = req.params.CONT_ID;
    console.log(cont_id);
-   db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, FILE_PATH FROM ' + DB_NAME + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
+   db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, FILE_PATH FROM ' + DB_BLOG_BOARD + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
      if (err) {
        db.rollback(function () {
          console.log("rollback error");
@@ -134,7 +149,7 @@ router.post('/write', upload.single('image'), function (req, res, next) {
 
   db.beginTransaction(function (err) {
     if (err) console.log(err);
-    db.query('insert into ' + DB_NAME + '(TITLE, REG_ID, CONTENT, ORG_FILE_NAME, SAVE_FILE_NAME, FILE_PATH) values(?,?,?,?,?,?)', [title, writer, content, originalname, filename, filepath], function (err) {
+    db.query('insert into ' + DB_BLOG_BOARD + '(TITLE, REG_ID, CONTENT, ORG_FILE_NAME, SAVE_FILE_NAME, FILE_PATH) values(?,?,?,?,?,?)', [title, writer, content, originalname, filename, filepath], function (err) {
       if (err) {
         /* 이 쿼리문에서 에러가 발생했을때는 쿼리문의 수행을 취소하고 롤백합니다.*/
         console.log(err);
@@ -166,7 +181,7 @@ router.post('/write', upload.single('image'), function (req, res, next) {
  */
 router.get('/modify/:CONT_ID', function (req, res, next) {
   var cont_id = req.params.CONT_ID;
-  db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, ORG_FILE_NAME FROM ' + DB_NAME + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
+  db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, ORG_FILE_NAME FROM ' + DB_BLOG_BOARD + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
     if (err) {
       console.log(err);
       db.rollback(function () {
@@ -205,7 +220,7 @@ router.post('/modify/:CONT_ID', upload.single('image'), function (req, res, next
 
   //파일변경까지 있는 경우
   if( req.file ) {
-    db.query('UPDATE ' + DB_NAME + ' SET TITLE=?, CONTENT=?, ORG_FILE_NAME=?, SAVE_FILE_NAME=?, FILE_PATH=? WHERE CONT_ID=?', [title, content, originalname, filename, filepath, cont_id], function (err, rows, fields) {
+    db.query('UPDATE ' + DB_BLOG_BOARD + ' SET TITLE=?, CONTENT=?, ORG_FILE_NAME=?, SAVE_FILE_NAME=?, FILE_PATH=? WHERE CONT_ID=?', [title, content, originalname, filename, filepath, cont_id], function (err, rows, fields) {
       if (err) {
         console.log(err);
         db.rollback(function () {
@@ -222,7 +237,7 @@ router.post('/modify/:CONT_ID', upload.single('image'), function (req, res, next
     })
   } else {
     //파일변경이 없는경우
-    db.query('UPDATE ' + DB_NAME + ' SET TITLE=?, CONTENT=? WHERE CONT_ID=?', [title, content, cont_id], function (err, rows, fields) {
+    db.query('UPDATE ' + DB_BLOG_BOARD + ' SET TITLE=?, CONTENT=? WHERE CONT_ID=?', [title, content, cont_id], function (err, rows, fields) {
       if (err) {
         console.log(err);
         db.rollback(function () {
@@ -247,7 +262,7 @@ router.post('/modify/:CONT_ID', upload.single('image'), function (req, res, next
 router.post('/delete/:CONT_ID', function (req, res, next) {
   var cont_id = req.params.CONT_ID;
 
-  db.query('DELETE FROM ' + DB_NAME + ' WHERE CONT_ID = ?', [cont_id], function (err, rows, fields) {
+  db.query('DELETE FROM ' + DB_BLOG_BOARD + ' WHERE CONT_ID = ?', [cont_id], function (err, rows, fields) {
     if (err) {
       console.log(err);
       db.rollback(function () {
@@ -271,33 +286,62 @@ router.post('/delete/:CONT_ID', function (req, res, next) {
  * @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
  */
 
+router.post('/join', passport.authenticate('local-join', {
+  successRedirect: '/main',
+  failureRedirect: '/join',
+  failureFlash: true
+}));
 
-// 로그인 GET
-router.get('/login', function(req, res, next) {
-    res.render("login");
+passport.serializeUser(function (user, done) {
+  console.log('passport session save: ', user.id);
+  done(null, user.id);
 });
 
-// 로그인 POST
-router.post("/login", function(req,res,next){
-    let body = req.body;
+passport.deserializeUser(function (id, done) {
+  console.log('passport session get id: ', id);
 
-    console.log("비밀번호 일치");
-        res.redirect("/main");
-
-    // let dbPassword = result.dataValues.password;
-    // let inputPassword = body.password;
-    // let salt = result.dataValues.salt;
-    // let hashPassword = crypto.createHash("sha512").update(inputPassword + salt).digest("hex");
-
-    // if(dbPassword === hashPassword){
-    //     console.log("비밀번호 일치");
-    //     res.redirect("/main");
-    // }
-    // else{
-    //     console.log("비밀번호 불일치");
-    //     res.redirect("/main/login");
-    // }
+  done(null, id);
 });
+
+passport.use('local-join', new LocalStrategy({
+  usernameField: 'email',
+  passwordField: 'pw',
+  passReqToCallback: true
+}, function (req, email, pw, done) {
+  var sql = 'SELECT * FROM ' + DB_USERINFO + ' WHERE ADMIN_ID = ?'
+  var query = db.query(sql, [email], function (err, datas) {
+    if (err) return done(err);
+    if (datas.length) {
+      console.log('existed user');
+      return done(null, false, {
+        message: 'your email is already used'
+      });
+    } else {
+      var sql = 'INSERT INTO ' + DB_USERINFO + '(ADMIN_ID, ADMIN_PASSWORD) values(?,?)';
+      var query = db.query(sql, [email, pw], function (err, datas) {
+        if (err) return done(err);
+        return done(null, {
+          'email': email,
+          'id': datas.insertId
+        })
+      });
+    }
+  });
+}));
+
+router.get('/join', function (req, res, next) {
+  var msg;
+  var errMsg = req.flash('error');
+  if (errMsg) {
+    msg = errMsg;
+  }
+  res.render('join', {
+    title: 'join',
+    message: msg
+  });
+});
+
+
 
 
 module.exports = router;
