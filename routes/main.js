@@ -4,19 +4,10 @@ const db = require('./maria');
 const fs = require('fs');
 const DB_BLOG_BOARD = 'BLOG_BOARD';
 const DB_USERINFO = 'ADMIN_INFO';
+var passport = require('passport'),
+  LocalStrategy = require('passport-local').Strategy;
+var bcrypt = require('bcrypt-nodejs');
 
-var passport = require('passport'); 
-var LocalStrategy = require('passport-local').Strategy; 
-var session = require('express-session'); 
-var flash = require('connect-flash');
-
-
-
-var isAuthenticated = function (req, res, next) {
-  if (req.isAuthenticated())
-    return next();
-  res.redirect('/login');
-};
 
 //파일 업로드 
 const multer = require('multer');
@@ -90,34 +81,34 @@ router.get('/view/:CONT_ID', function (req, res, next) {
 /**
  * 이미지 불러오기
  */
- router.get('/imgs/:CONT_ID', function (req, res) {
-   var cont_id = req.params.CONT_ID;
-   console.log(cont_id);
-   db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, FILE_PATH FROM ' + DB_BLOG_BOARD + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
-     if (err) {
-       db.rollback(function () {
-         console.log("rollback error");
-       });
-     } else {
-       db.commit(function (err) {
-         if (err) {
-           console.log("commit error" + err);
-         }
-         if (rows.length <= 1) {
-           fs.readFile(rows[0].FILE_PATH, function (err, data) {
-             if (err) throw err;
-             res.writeHead(200, {
-               'Content-Type': 'image/png'
-             });
-             res.end(data);
-           });
-         } else {
-           console.log("length of rows is not 1");
-         }
-       });
-     }
-   });
- });
+router.get('/imgs/:CONT_ID', function (req, res) {
+  var cont_id = req.params.CONT_ID;
+  console.log(cont_id);
+  db.query('SELECT CONT_ID, TITLE, REG_ID, CONTENT, DATE_FORMAT(REG_DT, "%Y/%m/%d %T") as REG_DT, FILE_PATH FROM ' + DB_BLOG_BOARD + ' WHERE CONT_ID = ?', [cont_id], function (err, rows) {
+    if (err) {
+      db.rollback(function () {
+        console.log("rollback error");
+      });
+    } else {
+      db.commit(function (err) {
+        if (err) {
+          console.log("commit error" + err);
+        }
+        if (rows.length <= 1) {
+          fs.readFile(rows[0].FILE_PATH, function (err, data) {
+            if (err) throw err;
+            res.writeHead(200, {
+              'Content-Type': 'image/png'
+            });
+            res.end(data);
+          });
+        } else {
+          console.log("length of rows is not 1");
+        }
+      });
+    }
+  });
+});
 
 /**
  * 글 쓰기 페이지
@@ -137,7 +128,7 @@ router.post('/write', upload.single('image'), function (req, res, next) {
   var filepath = "";
 
   var body = req.body;
-  if( req.file ) {
+  if (req.file) {
     originalname = req.file.originalname;
     filename = req.file.filename;
     filepath = req.file.path;
@@ -149,7 +140,7 @@ router.post('/write', upload.single('image'), function (req, res, next) {
 
   db.beginTransaction(function (err) {
     if (err) console.log(err);
-    db.query('insert into ' + DB_BLOG_BOARD + '(TITLE, REG_ID, CONTENT, ORG_FILE_NAME, SAVE_FILE_NAME, FILE_PATH) values(?,?,?,?,?,?)', [title, writer, content, originalname, filename, filepath], function (err) {
+    db.query('INSERT INTO ' + DB_BLOG_BOARD + '(TITLE, REG_ID, CONTENT, ORG_FILE_NAME, SAVE_FILE_NAME, FILE_PATH) VALUES(?,?,?,?,?,?)', [title, writer, content, originalname, filename, filepath], function (err) {
       if (err) {
         /* 이 쿼리문에서 에러가 발생했을때는 쿼리문의 수행을 취소하고 롤백합니다.*/
         console.log(err);
@@ -211,7 +202,7 @@ router.post('/modify/:CONT_ID', upload.single('image'), function (req, res, next
   var filename = "";
   var filepath = "";
 
-  if( req.file ) {
+  if (req.file) {
     originalname = req.file.originalname;
     filename = req.file.filename;
     filepath = req.file.path;
@@ -219,7 +210,7 @@ router.post('/modify/:CONT_ID', upload.single('image'), function (req, res, next
   console.log(req.file);
 
   //파일변경까지 있는 경우
-  if( req.file ) {
+  if (req.file) {
     db.query('UPDATE ' + DB_BLOG_BOARD + ' SET TITLE=?, CONTENT=?, ORG_FILE_NAME=?, SAVE_FILE_NAME=?, FILE_PATH=? WHERE CONT_ID=?', [title, content, originalname, filename, filepath, cont_id], function (err, rows, fields) {
       if (err) {
         console.log(err);
@@ -253,7 +244,7 @@ router.post('/modify/:CONT_ID', upload.single('image'), function (req, res, next
       }
     })
   }
-  
+
 });
 
 /**
@@ -286,62 +277,95 @@ router.post('/delete/:CONT_ID', function (req, res, next) {
  * @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
  */
 
-router.post('/join', passport.authenticate('local-join', {
-  successRedirect: '/main',
-  failureRedirect: '/join',
-  failureFlash: true
-}));
+router.get('/login', function (req, res) {
 
-passport.serializeUser(function (user, done) {
-  console.log('passport session save: ', user.id);
-  done(null, user.id);
+  if (req.user !== undefined) {
+    res.redirect('/main')
+  } else {
+    res.render('login', {
+      title: 'login'
+    })
+  }
 });
 
-passport.deserializeUser(function (id, done) {
-  console.log('passport session get id: ', id);
 
-  done(null, id);
-});
+router.post('/login', passport.authenticate('local', {
+    failureRedirect: '/main/login',
+    failureFlash: true
+  }), // 인증 실패 시 401 리턴, {} -> 인증 스트레티지
+  function (req, res) {
+    res.redirect('/main');
+  });
 
-passport.use('local-join', new LocalStrategy({
-  usernameField: 'email',
-  passwordField: 'pw',
-  passReqToCallback: true
-}, function (req, email, pw, done) {
-  var sql = 'SELECT * FROM ' + DB_USERINFO + ' WHERE ADMIN_ID = ?'
-  var query = db.query(sql, [email], function (err, datas) {
-    if (err) return done(err);
-    if (datas.length) {
-      console.log('existed user');
-      return done(null, false, {
-        message: 'your email is already used'
+passport.use(new LocalStrategy({
+  usernameField: 'username',
+  passwordField: 'password',
+  passReqToCallback: true //인증을 수행하는 인증 함수로 HTTP request를 그대로  전달할지 여부를 결정한다
+}, function (req, username, password, done) {
+  console.log('username : ' + username);
+  db.query('SELECT ADMIN_ID, ADMIN_PASSWORD FROM ' + DB_USERINFO + ' WHERE ADMIN_ID = ?', [username], function (err, rows) {
+    if (err) {
+      db.rollback(function () {
+        console.log("rollback error");
+        return done(false, null);
       });
     } else {
-      var sql = 'INSERT INTO ' + DB_USERINFO + '(ADMIN_ID, ADMIN_PASSWORD) values(?,?)';
-      var query = db.query(sql, [email, pw], function (err, datas) {
-        if (err) return done(err);
-        return done(null, {
-          'email': email,
-          'id': datas.insertId
-        })
+      db.commit(function (err) {
+        if (err) {
+          console.log("commit error" + err);
+          return done(false, null);
+        }
+        if (rows.length <= 1) {
+          bcrypt.compare(password, rows[0].ADMIN_PASSWORD, function (err, res) {
+            console.log('password : ' + password);
+            if (res) {
+              return done(null, {
+                'user_id': username,
+              });
+            } else {
+              return done(null, false, {
+                'message': 'Your password is incorrect'
+              });
+            }
+          });
+        } else {
+          return done(false, null);
+        }
       });
     }
   });
 }));
 
-router.get('/join', function (req, res, next) {
-  var msg;
-  var errMsg = req.flash('error');
-  if (errMsg) {
-    msg = errMsg;
-  }
-  res.render('join', {
-    title: 'join',
-    message: msg
-  });
+
+passport.serializeUser(function (user, done) {
+  done(null, user)
 });
 
 
+passport.deserializeUser(function (user, done) {
+  done(null, user);
+});
+
+
+var isAuthenticated = function (req, res, next) {
+  if (req.isAuthenticated())
+    return next();
+  res.redirect('/login');
+};
+
+
+router.get('/myinfo', isAuthenticated, function (req, res) {
+  res.render('myinfo', {
+    title: 'My Info',
+    user_info: req.user
+  })
+});
+
+
+router.get('/logout', function (req, res) {
+  req.logout();
+  res.redirect('/main');
+});
 
 
 module.exports = router;

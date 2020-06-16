@@ -5,11 +5,17 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const bodyParser = require('body-parser');
 
-var passport = require('passport');
-var LocalStrategy = require('passport-local').Strategy;
-var session = require('express-session');
+/**
+ * Passport Module
+ */
+var passport = require('passport')
+  , LocalStrategy = require('passport-local').Strategy;
+var cookieSession = require('cookie-session');
 var flash = require('connect-flash');
 
+/**
+ * Router 
+ */
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 var mainRouter = require('./routes/main');
@@ -30,15 +36,19 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.json());
 
 
-app.use(session({
-  secret: 'key',
-  resave: false,
-  saveUninitialized: true
+/**
+ * Passport 
+ */
+app.use(cookieSession({
+  keys: ['glofer_glog'],
+  cookie: {
+    maxAge: 1000 * 60 * 60 // 유효기간 1시간
+  }
 }));
 
+app.use(flash());
 app.use(passport.initialize());
 app.use(passport.session());
-app.use(flash());
 
 
 app.use('/', indexRouter);
